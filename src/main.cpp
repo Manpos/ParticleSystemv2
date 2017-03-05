@@ -7,6 +7,8 @@
 
 #include "GL_framework.h"
 
+
+
 static GLFWwindow *window;
 
 extern void PhysicsInit();

@@ -33,14 +33,22 @@ float *partVelocity;
 float *partTimeAlive;
 float *partPrevPosition;
 //General variables
+double expected_frametime = 1.0 / 30;
 float gravity = -9.81;
+int partPerSecond = 100*expected_frametime;
 //Particle state
-
+float maxTime = 3;
 //Euler variables
 float initialVel;
 
 //Verlet variables
 bool verlet;
+//Own variables
+int startPart = 0;
+int lastPart = partPerSecond;
+//XYZ velocity -------- 0 - 1 values
+float vMin = 0.03, vMax = 0.06, vY = 0.2;
+float random = RAND_MAX;
 
 
 void PhysicsInit() {
@@ -60,9 +68,11 @@ void PhysicsInit() {
 		partPosition[i * 3 + 1] = 5;
 		partPosition[i * 3 + 2] = 0;
 
-		partPrevPosition[i * 3] = partPosition[i * 3] + ((float)rand() / RAND_MAX) * 0.2f - 0.1f;
-		partPrevPosition[i * 3 + 1] = partPosition[i * 3 + 1] - ((float)rand() / RAND_MAX) * 0.2f;;
-		partPrevPosition[i * 3 + 2] = partPosition[i * 3 + 2] + ((float)rand() / RAND_MAX) * 0.2f - 0.1f;
+		partPrevPosition[i * 3] = partPosition[i * 3] + ((float)rand() /random) * vMax - vMin;
+		partPrevPosition[i * 3 + 1] = partPosition[i * 3 + 1] - ((float)rand() / random) * vY;
+		partPrevPosition[i * 3 + 2] = partPosition[i * 3 + 2] + ((float)rand() / random) * vMax - vMin;
+
+		partTimeAlive[i] = 0;
 
 		verlet = true;
 	}
@@ -71,7 +81,7 @@ void PhysicsInit() {
 }
 
 void PhysicsUpdate(float dt) {
-	for (int i = 0; i < LilSpheres::maxParticles; ++i) {
+	for (int i = startPart; i <= lastPart; ++i) {
 
 		if (verlet) {
 
@@ -89,14 +99,36 @@ void PhysicsUpdate(float dt) {
 			partPosition[i * 3] = partPosition[i * 3] + partVelocity[i * 3] * dt;
 			partPosition[i * 3 + 1] += (partVelocity[i * 3 + 1] * dt);
 			partPosition[i * 3 + 2] = partPosition[i * 3 + 2] + partVelocity[i * 3 + 2] * dt;
-
 		}
-		//partVelocity[i * 3] = partVelocity[i * 3] + dt;
-		
 
+		partTimeAlive[i] += dt;
+
+		if (partTimeAlive[i] > maxTime) {
+			partPosition[i * 3] = 0;
+			partPosition[i * 3 + 1] = 5;
+			partPosition[i * 3 + 2] = 0;
+
+			partPrevPosition[i * 3] = partPosition[i * 3] + ((float)rand() / random) * vMax - vMin;
+			partPrevPosition[i * 3 + 1] = partPosition[i * 3 + 1] - ((float)rand() / random) * vY;;
+			partPrevPosition[i * 3 + 2] = partPosition[i * 3 + 2] + ((float)rand() / random) * vMax - vMin;
+
+			partTimeAlive[i] = 0;
+		}
 	}
 
-	LilSpheres::updateParticles(0, LilSpheres::maxParticles, partPosition);
+	LilSpheres::updateParticles(startPart, lastPart, partPosition);
+
+	ImGui::Text("First part time: %f", partTimeAlive[0]);
+	ImGui::Text("First part time: %d", lastPart);
+
+	lastPart += partPerSecond;
+
+	if (lastPart > LilSpheres::maxParticles) {
+		lastPart = LilSpheres::maxParticles - 1;
+	}
+
+	
+
 	//TODO
 
 }

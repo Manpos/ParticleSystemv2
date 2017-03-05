@@ -22,6 +22,9 @@ extern void drawCapsule();
 }
 namespace LilSpheres {
 extern const int maxParticles;
+//Own variables
+extern const int startPart = 0;
+extern const int lastPart = 0;
 extern void setupParticles(int numTotalParticles, float radius = 0.05f);
 extern void cleanupParticles();
 extern void updateParticles(int startIdx, int count, float* array_data);
