@@ -24,11 +24,11 @@ int maxPartPerSecond = 1000;
 int partPerSecond = maxPartPerSecond *expected_frametime;
 int deadParticles = 0;
 
-//Euler variables
-float initialVel;
-
-//Calc movement bools
+//Emitter's parameters
 int selectedSolver;
+int selectedEmitter;
+float emitterPosition[3];
+float cascadeWidth = 5;
 
 //Own variables
 int tail = 0;
@@ -36,11 +36,10 @@ int head = 0;
 float maxEmitedParticles;
 float currTimeAlive;
 
-//XYZ velocity -------- 0 - 1 values | Verlet
-float vMin = 0.03, vMax = 0.06, vY = 0.2;
+//XYZ initial velocity
+float initVel[3];
 
-//XYZ velocity -------- 0 - 10 velues | Euler
-float vMinE = 1.5, vMaxE = 3, vYE = 8;
+
 
 //Max random Value
 float random = RAND_MAX;
@@ -59,8 +58,13 @@ void GUI() {
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 		ImGui::RadioButton("Euler", &selectedSolver, 0); ImGui::SameLine();
 		ImGui::RadioButton("Verlet", &selectedSolver, 1);
-		ImGui::SliderInt("Particles per second", &maxPartPerSecond, 100, 1000);
-		ImGui::SliderFloat("Seconds alive", &maxTimeAlive, 1, 10);
+		ImGui::RadioButton("Font", &selectedEmitter, 0); ImGui::SameLine();
+		ImGui::RadioButton("Cascade", &selectedEmitter, 1);
+		ImGui::SliderFloat("Cascade Width", &cascadeWidth, 1, 10);
+		ImGui::InputFloat3("Emitter position", emitterPosition);
+		ImGui::InputFloat3("Initial velocity", initVel);
+		ImGui::SliderInt("Parts per second", &maxPartPerSecond, 100, 3000);
+		ImGui::SliderFloat("Life time", &maxTimeAlive, 1, 10);
 		//TODO
 	}
 
@@ -80,6 +84,14 @@ void PhysicsInit() {
 	partTimeAlive = new float[LilSpheres::maxParticles];
 	partPrevPosition = new float[LilSpheres::maxParticles * 3];
 
+	emitterPosition[0] = 0;
+	emitterPosition[1] = 5;
+	emitterPosition[2] = 0;
+
+	initVel[0] = 0.03;
+	initVel[1] = 0.2;
+	initVel[2] = 0.03;
+
 	selectedSolver = 0;
 	currTimeAlive = maxTimeAlive;
 }
@@ -87,7 +99,6 @@ void PhysicsInit() {
 void PhysicsUpdate(float dt) {	
 
 	partPerSecond = maxPartPerSecond *dt;
-	//ImGui::Text("%d", partPerSecond);
 
 	for (int i = 0; i < LilSpheres::maxParticles; ++i) {
 
@@ -139,15 +150,14 @@ void PhysicsUpdate(float dt) {
 			}
 
 			partTimeAlive[i] -= dt;
-			//cout << partTimeAlive[i] << endl;
 
 			if (partTimeAlive[i] <= 0) {
 				head++;
 				head = head % (LilSpheres::maxParticles);
 				//Reset initial position
-				partPosition[i * 3] = 0;
-				partPosition[i * 3 + 1] = 5;
-				partPosition[i * 3 + 2] = 0;
+				partPosition[i * 3] = emitterPosition[0];
+				partPosition[i * 3 + 1] = emitterPosition[1];
+				partPosition[i * 3 + 2] = emitterPosition[2];
 
 			}
 		}
@@ -157,38 +167,66 @@ void PhysicsUpdate(float dt) {
 	float emitedParticles = 0;
 	maxEmitedParticles = partPerSecond;
 
-	while (emitedParticles < maxEmitedParticles) {
+	if (selectedEmitter == 0) {
 
-		emitedParticles++;
+		while (emitedParticles < maxEmitedParticles) {
 
-		//Reset initial position
-		partPosition[tail * 3] = 0;
-		partPosition[tail * 3 + 1] = 5;
-		partPosition[tail * 3 + 2] = 0;
+			emitedParticles++;
 
-		//Reset initial velocity
-		initialPartVelocity[tail * 3] = ((float)rand() / random) * vMaxE - vMinE;
-		initialPartVelocity[tail * 3 + 1] = ((float)rand() / random) * vYE;
-		initialPartVelocity[tail * 3 + 2] = ((float)rand() / random) * vMaxE - vMinE;
+			//Reset initial position
+			partPosition[tail * 3] = emitterPosition[0];
+			partPosition[tail * 3 + 1] = emitterPosition[1];
+			partPosition[tail * 3 + 2] = emitterPosition[2];
 
-		//Reset previous position
-		partPrevPosition[tail * 3] = partPosition[tail * 3] + ((float)rand() / random) * vMax - vMin;
-		partPrevPosition[tail * 3 + 1] = partPosition[tail * 3 + 1] - ((float)rand() / random) * vY;;
-		partPrevPosition[tail * 3 + 2] = partPosition[tail * 3 + 2] + ((float)rand() / random) * vMax - vMin;
+			//Reset previous position
+			partPrevPosition[tail * 3] = partPosition[tail * 3] + ((float)rand() / random) * initVel[0]*2 - initVel[0];
+			partPrevPosition[tail * 3 + 1] = partPosition[tail * 3 + 1] - ((float)rand() / random) * initVel[1]*2 - initVel[1];
+			partPrevPosition[tail * 3 + 2] = partPosition[tail * 3 + 2] + ((float)rand() / random) * initVel[2]*2 - initVel[2];
 
-		tail++;
-		tail = tail % (LilSpheres::maxParticles);
+			//Reset initial velocity
+			initialPartVelocity[tail * 3] = (partPosition[tail * 3] - partPrevPosition[tail * 3])/ dt;
+			initialPartVelocity[tail * 3 + 1] = (partPosition[tail * 3 + 1] - partPrevPosition[tail * 3 + 1]) / dt;
+			initialPartVelocity[tail * 3 + 2] = (partPosition[tail * 3 + 2] - partPrevPosition[tail * 3 + 2]) / dt;
 
-		//Reset timer
-		partTimeAlive[tail] = maxTimeAlive;
+			tail++;
+			tail = tail % (LilSpheres::maxParticles);
 
+			//Reset timer
+			partTimeAlive[tail] = maxTimeAlive;
+
+		}
 	}
 	
-	//ImGui::Text("%d", head);
-	//ImGui::Text("%d", tail);
+	else {
 
+		while (emitedParticles < maxEmitedParticles) {
 
+			emitedParticles++;
 
+			//Reset initial position
+			partPosition[tail * 3] = emitterPosition[0] + ((float)rand() / random) * cascadeWidth - cascadeWidth/2;
+			partPosition[tail * 3 + 1] = emitterPosition[1];
+			partPosition[tail * 3 + 2] = emitterPosition[2];
+
+			//Reset previous position
+			partPrevPosition[tail * 3] = partPosition[tail * 3] + ((float)rand() / random) * 0;
+			partPrevPosition[tail * 3 + 1] = partPosition[tail * 3 + 1] - ((float)rand() / random) * 0;
+			partPrevPosition[tail * 3 + 2] = partPosition[tail * 3 + 2] + ((float)rand() / random) * initVel[2] - initVel[2];
+
+			//Reset initial velocity
+			initialPartVelocity[tail * 3] = (partPosition[tail * 3] - partPrevPosition[tail * 3]) / dt;
+			initialPartVelocity[tail * 3 + 1] = (partPosition[tail * 3 + 1] - partPrevPosition[tail * 3 + 1]) / dt;
+			initialPartVelocity[tail * 3 + 2] = (partPosition[tail * 3 + 2] - partPrevPosition[tail * 3 + 2]) / dt;
+
+			tail++;
+			tail = tail % (LilSpheres::maxParticles);
+
+			//Reset timer
+			partTimeAlive[tail] = maxTimeAlive;
+
+		}
+	}
+	
 	LilSpheres::updateParticles(0, LilSpheres::maxParticles, partPosition);
 }
 
