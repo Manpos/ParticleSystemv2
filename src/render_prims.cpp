@@ -23,8 +23,8 @@ extern void drawCapsule();
 namespace LilSpheres {
 extern const int maxParticles;
 //Own variables
-extern const int startPart = 0;
-extern const int lastPart = 0;
+extern const int tail = 0;
+extern const int head = 0;
 extern void setupParticles(int numTotalParticles, float radius = 0.05f);
 extern void cleanupParticles();
 extern void updateParticles(int startIdx, int count, float* array_data);
@@ -79,7 +79,17 @@ void renderPrims() {
 
 	//TODO drawParticles can only draw a contiguous amount of particles in its array from start idx to idx+count
 	//Depending the alive particles that have to be rendered, you may need to do multiple calls for this function
-	if(renderParticles)
-		LilSpheres::drawParticles(0, LilSpheres::maxParticles);
+	if (renderParticles) {
+
+		extern int tail, head;
+
+		if (head > tail) {
+			LilSpheres::drawParticles(0, tail-1);
+			LilSpheres::drawParticles(head, LilSpheres::maxParticles-1 - head);
+		}
+		else LilSpheres::drawParticles(head, tail-1);
+		
+	}
+		
 	//
 }
