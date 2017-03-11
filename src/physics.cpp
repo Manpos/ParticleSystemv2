@@ -3,7 +3,10 @@
 #include <glm\glm.hpp>
 #include <iostream>
 
+#define ELASTICITY_COEFICIENT  0.8
+
 using namespace std;
+using namespace glm;
 
 bool show_test_window = false;
 
@@ -39,6 +42,21 @@ float currTimeAlive;
 //XYZ initial velocity
 float initVel[3];
 
+vec3 preColisionVector;
+float preColisionVectorModule;
+
+float counter = 0;
+
+struct Plane {
+	glm::vec3 normal;
+	float d;
+};
+
+Plane planeDown, planeLeft, planeRight, planeFront, planeBack, planeTop;
+
+float tempx, tempy, tempz, prevTempX, prevTempY, prevTempZ;
+
+float elasticity = ELASTICITY_COEFICIENT; // Range from 0 (no elasticity) to 1 (Maximum elsticity)
 
 
 //Max random Value
@@ -69,11 +87,147 @@ void GUI() {
 	}
 
 	// ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
-	if(show_test_window) {
+	if (show_test_window) {
 		ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
 		ImGui::ShowTestWindow(&show_test_window);
 	}
 }
+
+// Returns the distance from a position to the plane
+float DistancePointPlane(float Xo, float Yo, float Zo, Plane plane) {
+	float part1 = plane.normal.x * Xo + plane.normal.y * Yo + plane.normal.z * Zo + plane.d;
+
+	float part2 = sqrt((plane.normal.x * plane.normal.x) + (plane.normal.y * plane.normal.y) + (plane.normal.z * plane.normal.z));
+	return (part1 / part2);
+}
+
+// Returns the distance from a vector to the plane
+float DistancePointPlane(vec3 vector, Plane plane) {
+	float part1 = plane.normal.x * vector.x + plane.normal.y * vector.y + plane.normal.z * vector.z + plane.d;
+
+	float part2 = sqrt((plane.normal.x * plane.normal.x) + (plane.normal.y * plane.normal.y) + (plane.normal.z * plane.normal.z));
+	return (part1 / part2);
+}
+
+
+// Calculate the module of a vector
+float ModuleVector(vec3 vector) {
+	return sqrt((vector.x + vector.x) + (vector.y * vector.y) + (vector.z * vector.z));
+}
+
+// Makes a vector unitary
+vec3 MakeUnitaryVector(vec3 vector) {
+	vec3 unitary;
+	unitary.x = vector.x / ModuleVector(vector);
+	unitary.y = vector.y / ModuleVector(vector);
+	unitary.z = vector.z / ModuleVector(vector);
+	return unitary;
+}
+
+
+// Makes the general equation for a plane, by passing three points of the plane
+Plane PlaneEquation(float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3) {
+	vec3 AB, AC, normalVec;
+	Plane planeEquation;
+	float calculateDx, calculateDy, calculateDz;
+
+	AB.x = (x2 - x1);
+	AB.y = (y2 - y1);
+	AB.z = (z2 - z1);
+
+	AC.x = (x3 - x1);
+	AC.y = (y3 - y1);
+	AC.z = (z3 - z1);
+
+	normalVec = cross(AB, AC);
+
+	planeEquation.normal.x = normalVec.x;
+	planeEquation.normal.y = normalVec.y;
+	planeEquation.normal.z = normalVec.z;
+
+	calculateDx = normalVec.x * x1;
+	calculateDy = normalVec.y * y1;
+	calculateDz = normalVec.z * z1;
+
+	planeEquation.d = calculateDx + calculateDy + calculateDz;
+
+	return planeEquation;
+}
+
+// Calculate a dot product giving a vector and three coords of a point
+float DotProduct(vec3 x, float y1, float y2, float y3) {
+	return ((x.x * y1) + (x.y * y2) + (x.z * y3));
+}
+
+// Calculate if the particle is under the plane
+void Bounce(int i, Plane plane) {
+
+	if ((DotProduct(plane.normal, partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2])
+		+ DistancePointPlane(partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2], plane))
+		* (DotProduct(plane.normal, partPosition[i * 3], partPosition[i * 3 + 1], partPrevPosition[i * 3 + 2])
+			+ DistancePointPlane(partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2], plane))
+		<= 0) {
+
+		//partPosition[i * 3 + 1] = 0;	
+		//ImGui::Text("Anterior: %f	Actual: %f", partPrevPosition[i * 3 + 1], partPosition[i * 3 + 1]);
+		/*std::cout << partPrevPosition[i * 3 + 1] << std::endl;
+		std::cout << partPosition[i * 3 + 1] << std::endl;*/
+
+		if (selectedSolver == 1) {
+			
+			/*tempx = partPosition[i * 3] - (DotProduct(plane.normal, partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2])) * (1.0f + elasticity) * plane.normal.x;
+			tempy = partPosition[i * 3 + 1] - (DotProduct(plane.normal, partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2])) * (1.0f + elasticity) * plane.normal.x;
+			tempz = partPosition[i * 3 + 2] - (DotProduct(plane.normal, partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2])) * (1.0f + elasticity) * plane.normal.x;
+
+			prevTempX = partPrevPosition[i * 3] - (DotProduct(plane.normal, partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2])) * (1.0f + elasticity) * plane.normal.x;
+			prevTempY = partPrevPosition[i * 3 + 1] - (DotProduct(plane.normal, partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2])) * (1.0f + elasticity) * plane.normal.x;
+			prevTempZ = partPrevPosition[i * 3 + 2] - (DotProduct(plane.normal, partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2])) * (1.0f + elasticity) * plane.normal.z;
+			*/
+			tempx = partPosition[i * 3] - (DotProduct(plane.normal, partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2]) + plane.d) * (1.0f + elasticity) * plane.normal.x;
+			tempy = partPosition[i * 3 + 1] - (DotProduct(plane.normal, partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2]) + plane.d) * (1.0f + elasticity) * plane.normal.y;
+			tempz = partPosition[i * 3 + 2] - (DotProduct(plane.normal, partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2]) + plane.d) * (1.0f + elasticity) * plane.normal.z;
+			
+			prevTempX = partPrevPosition[i * 3] - (DotProduct(plane.normal, partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2]) + plane.d) * (1.0f + elasticity) * plane.normal.x;
+			prevTempY = partPrevPosition[i * 3 + 1] - (DotProduct(plane.normal, partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2]) + plane.d) * (1.0f + elasticity) * plane.normal.y;
+			prevTempZ = partPrevPosition[i * 3 + 2] - (DotProduct(plane.normal, partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2]) + plane.d) * (1.0f + elasticity) * plane.normal.z;
+			
+			partPosition[i * 3] = tempx;
+			partPosition[i * 3 + 1] = tempy;
+			partPosition[i * 3 + 2] = tempz;
+
+			partPrevPosition[i * 3] = prevTempX;
+			partPrevPosition[i * 3 + 1] = prevTempY;
+			partPrevPosition[i * 3 + 2] = prevTempZ;
+		}
+		
+		else {
+
+
+			prevTempX = initialPartVelocity[i * 3] - (1 + elasticity) * (plane.normal.x * initialPartVelocity[i * 3]) * plane.normal.x;
+			prevTempY = initialPartVelocity[i * 3 + 1] - (1 + elasticity) * (plane.normal.y * initialPartVelocity[i * 3 + 1]) * plane.normal.y;
+			prevTempZ = initialPartVelocity[i * 3 + 2] - (1 + elasticity) * (plane.normal.z * initialPartVelocity[i * 3 + 2]) * plane.normal.z;
+
+			tempx = partVelocity[i * 3] - (plane.normal.x * partVelocity[i * 3]) * (1 + elasticity) * plane.normal.x;
+			tempy = partVelocity[i * 3 + 1] - (plane.normal.y * partVelocity[i * 3 + 1]) * (1 + elasticity) * plane.normal.y;
+			tempz = partVelocity[i * 3 + 2] - (plane.normal.z * partVelocity[i * 3 + 2]) * (1 + elasticity) *  plane.normal.z;
+
+			initialPartVelocity[i * 3] = prevTempX;
+			initialPartVelocity[i * 3 + 1] = prevTempY;
+			initialPartVelocity[i * 3 + 2] = prevTempZ;
+
+			partVelocity[i * 3] = tempx;
+			partVelocity[i * 3 + 1] = tempy;
+			partVelocity[i * 3 + 2] = tempz;
+
+			partPosition[i * 3] = partPrevPosition[i * 3];
+			partPosition[i * 3 + 1] = partPrevPosition[i * 3 + 1];
+			partPosition[i * 3 + 2] = partPrevPosition[i * 3 + 2];
+		}
+	}
+	
+}
+
+
 
 
 void PhysicsInit() {
@@ -94,6 +248,14 @@ void PhysicsInit() {
 
 	selectedSolver = 0;
 	currTimeAlive = maxTimeAlive;
+
+	// Store plane equation
+	planeDown = { glm::vec3(0.f, 1.f, 0.f), 0.f };//PlaneEquation(-5.f, 0.f, -5.f, 5.f, 0.f, -5.f, 5.f, 0.f, 5.f);
+	planeLeft = { glm::vec3(1.f, 0.0f, 0.f), 10.f };
+	planeRight = { glm::vec3(1.f, 0.0f, 0.f), -10.f };
+	planeBack = { glm::vec3(0.f, 0.0f, 1.f), 5.f };
+	planeFront = { glm::vec3(0.f, 0.0f, 1.f), 5.f };
+	planeTop = { glm::vec3(0.f, 1.0f, 0.f), -20.0f };
 }
 
 void PhysicsUpdate(float dt) {	
@@ -124,9 +286,8 @@ void PhysicsUpdate(float dt) {
 				partPrevPosition[i * 3 + 2] = temp[2];
 
 			}
-
+			
 			else {
-
 				//Euler velocity update X,Y,Z
 				partVelocity[i * 3] = initialPartVelocity[i * 3] + 0 * dt;
 				partVelocity[i * 3 + 1] = initialPartVelocity[i * 3 + 1] + gravity * dt;
@@ -148,6 +309,17 @@ void PhysicsUpdate(float dt) {
 				initialPartVelocity[i * 3 + 2] = partVelocity[i * 3 + 2];
 
 			}
+
+
+			Bounce(i, planeDown);
+			Bounce(i, planeTop);
+
+			Bounce(i, planeLeft);
+			Bounce(i, planeRight);
+
+			Bounce(i, planeBack);
+			Bounce(i, planeFront);
+
 
 			partTimeAlive[i] -= dt;
 
@@ -226,7 +398,7 @@ void PhysicsUpdate(float dt) {
 
 		}
 	}
-	
+	ImGui::Text("%f", DistancePointPlane(partPrevPosition[0 * 3], partPrevPosition[0 * 3 + 1], partPrevPosition[0 * 3 + 2], planeRight));
 	LilSpheres::updateParticles(0, LilSpheres::maxParticles, partPosition);
 }
 
