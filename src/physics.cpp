@@ -22,8 +22,8 @@ double expected_frametime = 1.0 / 30;
 float gravity = -9.81;
 
 //Particle state
-float maxTimeAlive = 1;
-int maxPartPerSecond = 1000;
+float maxTimeAlive = 5;
+int maxPartPerSecond = 200;
 int partPerSecond = maxPartPerSecond *expected_frametime;
 int deadParticles = 0;
 
@@ -44,6 +44,10 @@ float initVel[3];
 
 vec3 preColisionVector;
 float preColisionVectorModule;
+
+//Sphere parameters
+extern glm::vec3 spherePosition;
+float sphereRadius = 1.f;
 
 float counter = 0;
 
@@ -95,7 +99,7 @@ void GUI() {
 
 // Returns the distance from a position to the plane
 float DistancePointPlane(float Xo, float Yo, float Zo, Plane plane) {
-	float part1 = plane.normal.x * Xo + plane.normal.y * Yo + plane.normal.z * Zo + plane.d;
+	float part1 = abs(plane.normal.x * Xo + plane.normal.y * Yo + plane.normal.z * Zo + plane.d);
 
 	float part2 = sqrt((plane.normal.x * plane.normal.x) + (plane.normal.y * plane.normal.y) + (plane.normal.z * plane.normal.z));
 	return (part1 / part2);
@@ -103,7 +107,7 @@ float DistancePointPlane(float Xo, float Yo, float Zo, Plane plane) {
 
 // Returns the distance from a vector to the plane
 float DistancePointPlane(vec3 vector, Plane plane) {
-	float part1 = plane.normal.x * vector.x + plane.normal.y * vector.y + plane.normal.z * vector.z + plane.d;
+	float part1 = abs(plane.normal.x * vector.x + plane.normal.y * vector.y + plane.normal.z * vector.z + plane.d);
 
 	float part2 = sqrt((plane.normal.x * plane.normal.x) + (plane.normal.y * plane.normal.y) + (plane.normal.z * plane.normal.z));
 	return (part1 / part2);
@@ -112,7 +116,7 @@ float DistancePointPlane(vec3 vector, Plane plane) {
 
 // Calculate the module of a vector
 float ModuleVector(vec3 vector) {
-	return sqrt((vector.x + vector.x) + (vector.y * vector.y) + (vector.z * vector.z));
+	return sqrt((vector.x * vector.x) + (vector.y * vector.y) + (vector.z * vector.z));
 }
 
 // Makes a vector unitary
@@ -160,36 +164,26 @@ float DotProduct(vec3 x, float y1, float y2, float y3) {
 }
 
 // Calculate if the particle is under the plane
-void Bounce(int i, Plane plane) {
+void Bounce(int i, Plane plane, bool isSphere = false) {
 
-	if ((DotProduct(plane.normal, partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2])
-		+ DistancePointPlane(partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2], plane))
-		* (DotProduct(plane.normal, partPosition[i * 3], partPosition[i * 3 + 1], partPrevPosition[i * 3 + 2])
-			+ DistancePointPlane(partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2], plane))
-		<= 0) {
-
-		//partPosition[i * 3 + 1] = 0;	
-		//ImGui::Text("Anterior: %f	Actual: %f", partPrevPosition[i * 3 + 1], partPosition[i * 3 + 1]);
-		/*std::cout << partPrevPosition[i * 3 + 1] << std::endl;
-		std::cout << partPosition[i * 3 + 1] << std::endl;*/
+	if (((DotProduct(plane.normal, partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2]) + plane.d)*
+		(DotProduct(plane.normal, partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2]) + plane.d)) <= 0) {
 
 		if (selectedSolver == 1) {
-			
-			/*tempx = partPosition[i * 3] - (DotProduct(plane.normal, partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2])) * (1.0f + elasticity) * plane.normal.x;
-			tempy = partPosition[i * 3 + 1] - (DotProduct(plane.normal, partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2])) * (1.0f + elasticity) * plane.normal.x;
-			tempz = partPosition[i * 3 + 2] - (DotProduct(plane.normal, partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2])) * (1.0f + elasticity) * plane.normal.x;
 
-			prevTempX = partPrevPosition[i * 3] - (DotProduct(plane.normal, partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2])) * (1.0f + elasticity) * plane.normal.x;
-			prevTempY = partPrevPosition[i * 3 + 1] - (DotProduct(plane.normal, partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2])) * (1.0f + elasticity) * plane.normal.x;
-			prevTempZ = partPrevPosition[i * 3 + 2] - (DotProduct(plane.normal, partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2])) * (1.0f + elasticity) * plane.normal.z;
-			*/
-			tempx = partPosition[i * 3] - (DotProduct(plane.normal, partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2]) + plane.d) * (1.0f + elasticity) * plane.normal.x;
-			tempy = partPosition[i * 3 + 1] - (DotProduct(plane.normal, partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2]) + plane.d) * (1.0f + elasticity) * plane.normal.y;
-			tempz = partPosition[i * 3 + 2] - (DotProduct(plane.normal, partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2]) + plane.d) * (1.0f + elasticity) * plane.normal.z;
+			tempx = partPosition[i * 3] - (DotProduct(plane.normal, partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2]) + 
+				plane.d) * (1.0f + elasticity) * plane.normal.x;
+			tempy = partPosition[i * 3 + 1] - (DotProduct(plane.normal, partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2]) + 
+				plane.d) * (1.0f + elasticity) * plane.normal.y;
+			tempz = partPosition[i * 3 + 2] - (DotProduct(plane.normal, partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2]) + 
+				plane.d) * (1.0f + elasticity) * plane.normal.z;
 			
-			prevTempX = partPrevPosition[i * 3] - (DotProduct(plane.normal, partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2]) + plane.d) * (1.0f + elasticity) * plane.normal.x;
-			prevTempY = partPrevPosition[i * 3 + 1] - (DotProduct(plane.normal, partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2]) + plane.d) * (1.0f + elasticity) * plane.normal.y;
-			prevTempZ = partPrevPosition[i * 3 + 2] - (DotProduct(plane.normal, partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2]) + plane.d) * (1.0f + elasticity) * plane.normal.z;
+			prevTempX = partPrevPosition[i * 3] - (DotProduct(plane.normal, partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2]) + 
+				plane.d) * (1.0f + elasticity) * plane.normal.x;
+			prevTempY = partPrevPosition[i * 3 + 1] - (DotProduct(plane.normal, partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2]) + 
+				plane.d) * (1.0f + elasticity) * plane.normal.y;
+			prevTempZ = partPrevPosition[i * 3 + 2] - (DotProduct(plane.normal, partPrevPosition[i * 3], partPrevPosition[i * 3 + 1], partPrevPosition[i * 3 + 2]) + 
+				plane.d) * (1.0f + elasticity) * plane.normal.z;
 			
 			partPosition[i * 3] = tempx;
 			partPosition[i * 3 + 1] = tempy;
@@ -227,7 +221,22 @@ void Bounce(int i, Plane plane) {
 	
 }
 
+float SphereDistance(float radius, glm::vec3 center, glm::vec3 particlePosition) {
+	glm::vec3 vector(particlePosition.x - center.x, particlePosition.y - center.y, particlePosition.z - center.z);
+	float resultValue = sqrt(vector.x * vector.x + vector.y * vector.y + vector.z * vector.z);
+	//cout << resultValue - radius << endl;
+	return resultValue - radius;
+}
 
+void SpherePlane(float radius, glm::vec3 center, glm::vec3 particlePosition, int i) {
+	if (SphereDistance(radius, center, particlePosition) <= 0) {
+		Plane tanPlane;
+		glm::vec3 collisionPoint = particlePosition;
+		tanPlane.normal = normalize(collisionPoint - center);
+		tanPlane.d = -(tanPlane.normal.x * collisionPoint.x + tanPlane.normal.y * collisionPoint.y + tanPlane.normal.z * collisionPoint.z);
+		Bounce(i, tanPlane);
+	}
+}
 
 
 void PhysicsInit() {
@@ -243,7 +252,7 @@ void PhysicsInit() {
 	emitterPosition[2] = 0;
 
 	initVel[0] = 0.03;
-	initVel[1] = 0.2;
+	initVel[1] = 0.0;
 	initVel[2] = 0.03;
 
 	selectedSolver = 0;
@@ -251,11 +260,11 @@ void PhysicsInit() {
 
 	// Store plane equation
 	planeDown = { glm::vec3(0.f, 1.f, 0.f), 0.f };//PlaneEquation(-5.f, 0.f, -5.f, 5.f, 0.f, -5.f, 5.f, 0.f, 5.f);
-	planeLeft = { glm::vec3(1.f, 0.0f, 0.f), 10.f };
-	planeRight = { glm::vec3(1.f, 0.0f, 0.f), -10.f };
+	planeTop = { glm::vec3(0.f, -1.0f, 0.f), 10.0f };
+	planeLeft = { glm::vec3(1.f, 0.0f, 0.f), 5.f };
+	planeRight = { glm::vec3(-1.f, 0.0f, 0.f), 5.f };
 	planeBack = { glm::vec3(0.f, 0.0f, 1.f), 5.f };
-	planeFront = { glm::vec3(0.f, 0.0f, 1.f), 5.f };
-	planeTop = { glm::vec3(0.f, 1.0f, 0.f), -20.0f };
+	planeFront = { glm::vec3(0.f, 0.0f, -1.f), 5.f };
 }
 
 void PhysicsUpdate(float dt) {	
@@ -320,6 +329,7 @@ void PhysicsUpdate(float dt) {
 			Bounce(i, planeBack);
 			Bounce(i, planeFront);
 
+			SpherePlane(sphereRadius, spherePosition, glm::vec3(partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2]), i);
 
 			partTimeAlive[i] -= dt;
 

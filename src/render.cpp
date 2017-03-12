@@ -6,6 +6,9 @@
 
 #include "GL_framework.h"
 
+#define MAX_PART 3000
+//SHRT_MAX
+
 /////////fw decl
 namespace ImGui {
 	void Render();
@@ -666,7 +669,7 @@ GLuint particlesVao;
 GLuint particlesVbo;
 float radius;
 int numparticles;
-extern const int maxParticles = SHRT_MAX;
+extern const int maxParticles = MAX_PART;
 
 void setupParticles(int numTotalParticles, float radius) {
 	assert(numTotalParticles > 0);

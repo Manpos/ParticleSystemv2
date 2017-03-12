@@ -31,14 +31,16 @@ extern void updateParticles(int startIdx, int count, float* array_data);
 extern void drawParticles(int startIdx, int count);
 }
 
+extern float sphereRadius;
+glm::vec3 spherePosition;
+
 void setupPrims() {
-	glm::vec3 spherePosition;
 
 	spherePosition.x = 2;
 	spherePosition.y = 1.f;
 	spherePosition.z = 1.5;
 
-	Sphere::setupSphere(spherePosition);
+	Sphere::setupSphere(spherePosition, sphereRadius);
 	Capsule::setupCapsule();
 
 	//TODO
