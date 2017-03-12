@@ -61,6 +61,11 @@ float friction = 0.1;	//Range from 0 to 1
 //Max random Value
 float random = RAND_MAX;
 
+//Capsule variables
+vec3 capA = { -3, 2, -2 };
+vec3 capB = { -4, 2, 2 };
+float capRadi = 1.0f;
+
 namespace LilSpheres {
 	extern const int maxParticles;
 	extern void setupParticles(int numTotalParticles, float radius = 0.05f);
@@ -162,6 +167,8 @@ float DotProduct(vec3 x, float y1, float y2, float y3) {
 	return ((x.x * y1) + (x.y * y2) + (x.z * y3));
 }
 
+
+
 // Calculate if the particle is under the plane
 void Bounce(int i, Plane plane) {
 
@@ -237,6 +244,27 @@ void SpherePlane(float radius, vec3 center, vec3 particlePosition, int i) {
 	}
 }
 
+// Calculate the distance to the capsule, and it's tangential plane
+void CapsuleDistance(int i) {
+	vec3 AB = { (capB.x - capA.x), (capB.y - capA.y), (capB.z - capA.z) };
+	vec3 AP = { (partPosition[i * 3] - capA.x), (partPosition[i * 3 + 1] - capA.y), (partPosition[i * 3 + 2] - capA.z) };
+	vec3 Q;
+	float divisionPart1 = dot(AP, AB);
+	float divisionPart2 = (sqrt((AB.x * AB.x) + (AB.y * AB.y) + (AB.z * AB.z))) * (sqrt((AB.x * AB.x) + (AB.y * AB.y) + (AB.z * AB.z)));
+	Q = capA + clamp((divisionPart1 / divisionPart2), 0.0f, 1.0f) * AB;
+
+	float distPointCapsule = (sqrt((partPosition[i * 3] - Q.x) * (partPosition[i * 3] - Q.x) + (partPosition[i * 3 + 1] - Q.y) * (partPosition[i * 3 + 1] - Q.y) + (partPosition[i * 3 + 2] - Q.z) * (partPosition[i * 3 + 2] - Q.z))) - capRadi;
+
+	if (distPointCapsule <= 0) {
+		vec3 hitPoint = { partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2] };
+		Plane tangentialPlane;
+		tangentialPlane.normal = { (hitPoint.x - Q.x), (hitPoint.y - Q.y), (hitPoint.z - Q.z) };
+		tangentialPlane.normal = MakeUnitaryVector(tangentialPlane.normal);
+		tangentialPlane.d = -((tangentialPlane.normal.x * capA.x) + (tangentialPlane.normal.y * capA.y) + (tangentialPlane.normal.z * capA.z));
+		cout << "X: " << tangentialPlane.normal.x << " Y: " << tangentialPlane.normal.y << " Z: " << tangentialPlane.normal.z << endl;
+		Bounce(i, tangentialPlane);
+	}
+}
 
 void PhysicsInit() {
 	//Arrays initialization
@@ -323,6 +351,7 @@ void PhysicsUpdate(float dt) {
 			Bounce(i, planeFront);
 
 			SpherePlane(sphereRadius, vec3(spherePosition[0], spherePosition[1], spherePosition[2]), vec3(partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2]), i);
+			CapsuleDistance(i);
 
 			partTimeAlive[i] -= dt;
 

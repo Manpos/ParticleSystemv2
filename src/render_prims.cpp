@@ -33,6 +33,8 @@ extern void drawParticles(int startIdx, int count);
 
 extern float sphereRadius;
 extern float spherePosition[3];
+extern glm::vec3 capA, capB;
+extern float capRadi;
 
 void setupPrims() {
 
@@ -41,7 +43,7 @@ void setupPrims() {
 	spherePosition[2] = 1.5;
 
 	Sphere::setupSphere(glm::vec3(spherePosition[0], spherePosition[1], spherePosition[2]), sphereRadius);
-	Capsule::setupCapsule();
+	Capsule::setupCapsule(capA, capB, capRadi);
 
 	//TODO
 	//You define how many particles will be in the simulation (maxParticles number in render.cpp is defined to SHRT_MAX, 
@@ -76,6 +78,7 @@ void cleanupPrims() {
 void renderPrims() {
 
 	Sphere::updateSphere(glm::vec3(spherePosition[0], spherePosition[1], spherePosition[2]), sphereRadius);
+	Capsule::updateCapsule(capA, capB, capRadi);
 
 	if(renderSphere)
 		Sphere::drawSphere();
