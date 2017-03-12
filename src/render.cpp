@@ -6,8 +6,7 @@
 
 #include "GL_framework.h"
 
-#define MAX_PART 3000
-//SHRT_MAX
+#define MAX_PART SHRT_MAX
 
 /////////fw decl
 namespace ImGui {

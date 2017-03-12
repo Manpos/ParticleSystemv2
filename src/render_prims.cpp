@@ -32,15 +32,15 @@ extern void drawParticles(int startIdx, int count);
 }
 
 extern float sphereRadius;
-glm::vec3 spherePosition;
+extern float spherePosition[3];
 
 void setupPrims() {
 
-	spherePosition.x = 2;
-	spherePosition.y = 1.f;
-	spherePosition.z = 1.5;
+	spherePosition[0] = 2;
+	spherePosition[1] = 1.f;
+	spherePosition[2] = 1.5;
 
-	Sphere::setupSphere(spherePosition, sphereRadius);
+	Sphere::setupSphere(glm::vec3(spherePosition[0], spherePosition[1], spherePosition[2]), sphereRadius);
 	Capsule::setupCapsule();
 
 	//TODO
@@ -74,6 +74,9 @@ void cleanupPrims() {
 }
 
 void renderPrims() {
+
+	Sphere::updateSphere(glm::vec3(spherePosition[0], spherePosition[1], spherePosition[2]), sphereRadius);
+
 	if(renderSphere)
 		Sphere::drawSphere();
 	if(renderCapsule)
