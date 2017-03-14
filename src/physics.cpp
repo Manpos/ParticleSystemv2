@@ -167,8 +167,6 @@ float DotProduct(vec3 x, float y1, float y2, float y3) {
 	return ((x.x * y1) + (x.y * y2) + (x.z * y3));
 }
 
-
-
 // Calculate if the particle is under the plane
 void Bounce(int i, Plane plane) {
 
@@ -258,10 +256,8 @@ void CapsuleDistance(int i) {
 	if (distPointCapsule <= 0) {
 		vec3 hitPoint = { partPosition[i * 3], partPosition[i * 3 + 1], partPosition[i * 3 + 2] };
 		Plane tangentialPlane;
-		tangentialPlane.normal = { (hitPoint.x - Q.x), (hitPoint.y - Q.y), (hitPoint.z - Q.z) };
-		tangentialPlane.normal = MakeUnitaryVector(tangentialPlane.normal);
-		tangentialPlane.d = -((tangentialPlane.normal.x * capA.x) + (tangentialPlane.normal.y * capA.y) + (tangentialPlane.normal.z * capA.z));
-		cout << "X: " << tangentialPlane.normal.x << " Y: " << tangentialPlane.normal.y << " Z: " << tangentialPlane.normal.z << endl;
+		tangentialPlane.normal = MakeUnitaryVector(hitPoint - Q);
+		tangentialPlane.d = -((tangentialPlane.normal.x * hitPoint.x) + (tangentialPlane.normal.y * hitPoint.y) + (tangentialPlane.normal.z * hitPoint.z));
 		Bounce(i, tangentialPlane);
 	}
 }
